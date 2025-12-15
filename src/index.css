@@ -691,25 +691,26 @@ button{ cursor:pointer; }
 
 /* ===== Step X: Logo branding ===== */
 
-.dd-logo{
-  width: 58px;
-  height: 58px;
+
+.dd-logo {
+  width: 96px;          /* BIGGER */
+  height: 96px;
   object-fit: contain;
-  border-radius: 16px;
-  box-shadow: var(--shadow2);
-  border: 1px solid rgba(255,255,255,0.14);
-  background: rgba(0,0,0,0.18);
-  padding: 6px;
+
+  /* remove the boxed look */
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+
+  /* subtle premium glow */
+  filter: drop-shadow(0 0 22px rgba(109, 60, 255, 0.35))
+          drop-shadow(0 0 38px rgba(0, 210, 255, 0.18));
 }
 
-.dd-title-tight{
-  letter-spacing: 0.10em;
+/* Give the brand row a little more breathing room */
+.dd-brand {
+  gap: 18px;
 }
 
-.dd-subtitle-strong{
-  margin-top: 3px;
-  font-size: 12px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  color: rgba(255,255,255,0.70);
-}
