@@ -420,6 +420,7 @@ export default function App() {
         </section>
       </main>
 
+
       {/* Create Modal */}
       {createOpen ? (
         <CreateModal
@@ -455,6 +456,35 @@ function pillKey(r) {
   if (p === "low") return "low";
   return "normal";
 }
+
+function MultiSelectChips({ options, value, onChange }) {
+  const selected = Array.isArray(value) ? value : [];
+
+  function toggle(opt) {
+    const has = selected.includes(opt);
+    const next = has ? selected.filter((x) => x !== opt) : [...selected, opt];
+    onChange(next.length ? next : []); // allow empty (we’ll guard on save)
+  }
+
+  return (
+    <div className="dd-chips">
+      {options.map((opt) => {
+        const isOn = selected.includes(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            className={cx("dd-chip", isOn && "dd-chip-on")}
+            onClick={() => toggle(opt)}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 
 /** CREATE MODAL **/
 function CreateModal({ value, onChange, onClose, onSubmit }) {
@@ -527,22 +557,15 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
             </label>
 
             <label className="dd-field">
-              <span>Assigned to (multi)</span>
-              <select
-                multiple
+              <span>Assigned to</span>
+              <MultiSelectChips
+                options={PEOPLE}
                 value={value.assigned_to}
-                onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
-                  onChange((f) => ({ ...f, assigned_to: selected }));
-                }}
-                style={{ height: 44 }}
-              >
-                {PEOPLE.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                onChange={(next) => onChange((f) => ({ ...f, assigned_to: next }))}
+              />
+              <div className="dd-mini" style={{ marginTop: 6 }}>
+                Click to toggle assignees.
+              </div>
             </label>
 
             <label className="dd-field">
@@ -733,22 +756,12 @@ function EditModal({ item, onClose, onSave }) {
             </label>
 
             <label className="dd-field">
-              <span>Assigned to (multi)</span>
-              <select
-                multiple
+              <span>Assigned to</span>
+              <MultiSelectChips
+                options={PEOPLE}
                 value={draft.assigned_to}
-                onChange={(e) => {
-                  const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
-                  setDraft((d) => ({ ...d, assigned_to: selected }));
-                }}
-                style={{ height: 44 }}
-              >
-                {PEOPLE.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
+                onChange={(next) => setDraft((d) => ({ ...d, assigned_to: next }))}
+              />
             </label>
 
             <label className="dd-field">
