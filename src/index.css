@@ -539,3 +539,56 @@ button{ cursor:pointer; }
   .dd-controls{ justify-content: flex-start; }
   .dd-search{ width: 100%; }
 }
+
+/* ===== Step 11: Full-width Action Items + control polish ===== */
+
+/* Make main content truly full-width */
+.dd-main-full {
+  max-width: none;
+  width: 100%;
+}
+
+/* Let the Action Items card span the full page */
+.dd-main-full .dd-card {
+  border-radius: 22px;
+}
+
+/* Controls row: better wrapping + spacing */
+.dd-controls {
+  gap: 12px;
+}
+
+/* Show Closed checkbox styling */
+.dd-showclosed {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-size: 12px;
+}
+.dd-showclosed input {
+  accent-color: #00d2ff;
+}
+
+/* Make table breathe a bit more on wide screens */
+@media (min-width: 1200px) {
+  .dd-thead,
+  .dd-tr {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+}
+
+/* Modal width guard (prevents side overflow on smaller screens) */
+.dd-modal {
+  max-width: 920px;
+  width: 100%;
+}
+
+/* Multi-select height fix (Assigned To) */
+.dd-field select[multiple] {
+  min-height: 96px;
+}
