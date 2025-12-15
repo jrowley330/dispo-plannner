@@ -657,3 +657,16 @@ button{ cursor:pointer; }
   border-color: rgba(0,210,255,0.55);
   box-shadow: 0 0 0 2px rgba(0,210,255,0.25);
 }
+
+/* ===== Step 13: Kill 2-column grid (make Action Items full-width) ===== */
+
+/* Old layout uses a 2-column grid (sidebar + content).
+   Force it to a single column. */
+.dd-main {
+  grid-template-columns: 1fr !important;
+}
+
+/* Ensure the Action Items card spans the full grid */
+.dd-list {
+  grid-column: 1 / -1 !important;
+}
