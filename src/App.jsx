@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 
+import dispoLogo from "./assets/digital-dispo-logo.png";
+
 /**
  * Digital Dispo Planner — UI-first (frontend-only)
  * Changes in this step:
@@ -11,7 +13,8 @@ import { useMemo, useState } from "react";
  * - List filters: Show Closed (checkbox), Priority dropdown, Assigned To dropdown
  */
 
-const BRAND = { name: "Digital Dispo", est: "EST. 2024" };
+const BRAND = { line1: "THE DIGITAL DISPO LLC", line2: "PLANNING TOOL" };
+
 
 const STATUS = ["Open", "In Process", "On Hold", "Closed"];
 const PRIORITY = ["Low", "Normal", "High", "Urgent"];
@@ -234,12 +237,10 @@ export default function App() {
     <div className="dd-page">
       <header className="dd-header">
         <div className="dd-brand">
-          <div className="dd-mark" aria-hidden="true">
-            <span className="dd-mark-inner">D</span>
-          </div>
+          <img className="dd-logo" src={dispoLogo} alt="Digital Dispo logo" />
           <div className="dd-brand-text">
-            <div className="dd-title">{BRAND.name}</div>
-            <div className="dd-subtitle">{BRAND.est}</div>
+            <div className="dd-title dd-title-tight">{BRAND.line1}</div>
+            <div className="dd-subtitle dd-subtitle-strong">{BRAND.line2}</div>
           </div>
         </div>
 

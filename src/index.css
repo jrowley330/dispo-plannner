@@ -688,3 +688,28 @@ button{ cursor:pointer; }
 .dd-chip.dd-chip-on:hover {
   background: linear-gradient(135deg, rgba(109,60,255,0.62), rgba(0,210,255,0.26));
 }
+
+/* ===== Step X: Logo branding ===== */
+
+.dd-logo{
+  width: 58px;
+  height: 58px;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: var(--shadow2);
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(0,0,0,0.18);
+  padding: 6px;
+}
+
+.dd-title-tight{
+  letter-spacing: 0.10em;
+}
+
+.dd-subtitle-strong{
+  margin-top: 3px;
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.70);
+}
