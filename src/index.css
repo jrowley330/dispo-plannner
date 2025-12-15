@@ -592,3 +592,68 @@ button{ cursor:pointer; }
 .dd-field select[multiple] {
   min-height: 96px;
 }
+
+/* ===== Step 12A: Fix narrow Action Items layout ===== */
+
+/* Remove any implicit max-width constraints */
+.dd-main,
+.dd-main-full {
+  max-width: none !important;
+  width: 100%;
+}
+
+/* Center content but allow it to grow wide */
+.dd-page {
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+/* Action Items card should span wide screens */
+.dd-list {
+  width: 100%;
+}
+
+/* On very wide screens, cap readability but keep it big */
+@media (min-width: 1400px) {
+  .dd-list {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+}
+
+/* ===== Step 12B: Dropdown + input readability ===== */
+
+/* Inputs & selects — darker background, clear text */
+.dd-field select,
+.dd-select,
+.dd-search,
+.dd-field input,
+.dd-field textarea {
+  background: rgba(0, 0, 0, 0.55) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+
+/* Dropdown options themselves */
+.dd-field select option,
+.dd-select option {
+  background: #0b0d12;
+  color: #ffffff;
+}
+
+/* Placeholder text */
+.dd-search::placeholder,
+.dd-field input::placeholder,
+.dd-field textarea::placeholder {
+  color: rgba(255,255,255,0.45);
+}
+
+/* Focus state clarity */
+.dd-field select:focus,
+.dd-select:focus,
+.dd-search:focus,
+.dd-field input:focus,
+.dd-field textarea:focus {
+  border-color: rgba(0,210,255,0.55);
+  box-shadow: 0 0 0 2px rgba(0,210,255,0.25);
+}
