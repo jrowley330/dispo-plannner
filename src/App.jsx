@@ -659,11 +659,6 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
             </div>
           </div>
 
-          <div className="dd-modal-footnote">
-            <div className="dd-mini">
-              Tip: multi-select = hold <b>Ctrl</b> (Windows) / <b>Cmd</b> (Mac) and click.
-            </div>
-          </div>
         </form>
       </div>
     </div>

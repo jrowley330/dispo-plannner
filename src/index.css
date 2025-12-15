@@ -670,3 +670,21 @@ button{ cursor:pointer; }
 .dd-list {
   grid-column: 1 / -1 !important;
 }
+
+/* ===== Step 14: Selected assignee chips ===== */
+
+.dd-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dd-chip.dd-chip-on {
+  background: linear-gradient(135deg, rgba(109,60,255,0.55), rgba(0,210,255,0.20));
+  border-color: rgba(0,210,255,0.35);
+  box-shadow: 0 0 0 2px rgba(0,210,255,0.15);
+  transform: translateY(-1px);
+}
+.dd-chip.dd-chip-on:hover {
+  background: linear-gradient(135deg, rgba(109,60,255,0.62), rgba(0,210,255,0.26));
+}
