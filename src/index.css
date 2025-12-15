@@ -693,8 +693,8 @@ button{ cursor:pointer; }
 
 
 .dd-logo {
-  width: 96px;          /* BIGGER */
-  height: 96px;
+  width: 192px;          /* BIGGER */
+  height: 192px;
   object-fit: contain;
 
   /* remove the boxed look */
