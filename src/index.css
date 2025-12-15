@@ -714,3 +714,11 @@ button{ cursor:pointer; }
   gap: 18px;
 }
 
+/*follow up below */
+.dd-actions-stack{
+  flex-direction: column;
+  align-items: flex-end;
+}
+.dd-actions-stack .dd-btn{
+  width: 140px;
+}

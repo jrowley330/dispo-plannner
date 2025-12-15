@@ -1,20 +1,7 @@
 import { useMemo, useState } from "react";
-
 import dispoLogo from "./assets/digital-dispo-logo.png";
 
-/**
- * Digital Dispo Planner — UI-first (frontend-only)
- * Changes in this step:
- * - Action Items takes full page (no left create panel)
- * - Create Action Item is a button -> opens modal
- * - Requested By dropdown: Joey/Lloyd/Jake
- * - Assigned To: multi-select (same options)
- * - Category options updated (no category filter in list)
- * - List filters: Show Closed (checkbox), Priority dropdown, Assigned To dropdown
- */
-
 const BRAND = { line1: "THE DIGITAL DISPO LLC", line2: "PLANNING TOOL" };
-
 
 const STATUS = ["Open", "In Process", "On Hold", "Closed"];
 const PRIORITY = ["Low", "Normal", "High", "Urgent"];
@@ -44,6 +31,34 @@ function cx(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
+function MultiSelectChips({ options, value, onChange }) {
+  const selected = Array.isArray(value) ? value : [];
+
+  function toggle(opt) {
+    const has = selected.includes(opt);
+    const next = has ? selected.filter((x) => x !== opt) : [...selected, opt];
+    onChange(next);
+  }
+
+  return (
+    <div className="dd-chips">
+      {options.map((opt) => {
+        const isOn = selected.includes(opt);
+        return (
+          <button
+            key={opt}
+            type="button"
+            className={cx("dd-chip", isOn && "dd-chip-on")}
+            onClick={() => toggle(opt)}
+          >
+            {opt}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function App() {
   // Data (local only for now)
   const [items, setItems] = useState([]);
@@ -58,6 +73,16 @@ export default function App() {
 
   // Toast
   const [toast, setToast] = useState("");
+
+  // Confirm modal state (for Close + Follow-up)
+  const [confirm, setConfirm] = useState({
+    open: false,
+    title: "",
+    message: "",
+    confirmText: "Confirm",
+    cancelText: "Cancel",
+    onConfirm: null,
+  });
 
   // Create modal
   const [createOpen, setCreateOpen] = useState(false);
@@ -95,25 +120,37 @@ export default function App() {
     showToast._t = window.setTimeout(() => setToast(""), 2400);
   }
 
+  function openConfirm(opts) {
+    setConfirm({
+      open: true,
+      title: opts.title || "Confirm",
+      message: opts.message || "Are you sure?",
+      confirmText: opts.confirmText || "Confirm",
+      cancelText: opts.cancelText || "Cancel",
+      onConfirm: opts.onConfirm || null,
+    });
+  }
+  function closeConfirm() {
+    setConfirm((c) => ({ ...c, open: false, onConfirm: null }));
+  }
+
   function resetCreateForm() {
-    setCreateForm((f) => ({
-      ...f,
+    setCreateForm(() => ({
       title: "",
       description: "",
       category: "Client Acquisition",
       status: "Open",
       requested_due_date: "",
       expected_due_date: "",
-      priority: "Normal",
       requested_by: "Joey",
       assigned_to: ["Joey"],
+      priority: "Normal",
     }));
   }
 
   function openCreate() {
     setCreateOpen(true);
   }
-
   function closeCreate() {
     setCreateOpen(false);
   }
@@ -124,11 +161,13 @@ export default function App() {
     const title = createForm.title.trim();
     if (!title) return showToast("Title is required.");
 
-    const now = new Date().toISOString();
-
     const assigned = Array.isArray(createForm.assigned_to)
       ? createForm.assigned_to.filter(Boolean)
       : [];
+
+    if (!assigned.length) return showToast("Pick at least 1 assignee.");
+
+    const now = new Date().toISOString();
 
     const newItem = {
       id: uid(),
@@ -140,7 +179,7 @@ export default function App() {
       requested_due_date: createForm.requested_due_date || "",
       expected_due_date: createForm.expected_due_date || "",
       requested_by: createForm.requested_by,
-      assigned_to: assigned.length ? assigned : ["Joey"],
+      assigned_to: assigned,
       created_at: now,
       updated_at: now,
     };
@@ -149,7 +188,9 @@ export default function App() {
     resetCreateForm();
     setCreateOpen(false);
     showToast("Action item created.");
+
     // Later: API -> BigQuery insert + Zapier webhook
+    // zapier_type: "create"
   }
 
   function startEdit(id) {
@@ -158,41 +199,106 @@ export default function App() {
   function cancelEdit() {
     setEditingId(null);
   }
-  function saveEdit(patch) {
+
+  // If status is changed to Closed via Edit -> confirm before saving
+  function saveEditWithCloseConfirm(patch, originalItem) {
+    const goingClosed = originalItem?.status !== "Closed" && patch.status === "Closed";
+
+    if (goingClosed) {
+      openConfirm({
+        title: "Confirm close",
+        message: "Mark this action item as CLOSED?",
+        confirmText: "Yes, Close",
+        cancelText: "Cancel",
+        onConfirm: () => {
+          closeConfirm();
+          saveEdit(patch, true);
+        },
+      });
+      return;
+    }
+
+    saveEdit(patch, false);
+  }
+
+  function saveEdit(patch, wasClosedConfirm) {
     const now = new Date().toISOString();
     setItems((prev) =>
       prev.map((x) => (x.id === editingId ? { ...x, ...patch, updated_at: now } : x))
     );
     setEditingId(null);
     showToast("Saved.");
-    // Later: API -> BigQuery update + Zapier webhook
+
+    // Later: API -> BigQuery update
+    // If wasClosedConfirm === true => zapier_type: "close"
   }
 
-  function quickSetStatus(id, status) {
+  function applyStatus(id, status) {
     const now = new Date().toISOString();
     setItems((prev) =>
       prev.map((x) => (x.id === id ? { ...x, status, updated_at: now } : x))
     );
+  }
+
+  function requestStatusChange(id, status) {
+    if (status === "Closed") {
+      const item = items.find((x) => x.id === id);
+      openConfirm({
+        title: "Confirm close",
+        message: "Mark this action item as CLOSED?",
+        confirmText: "Yes, Close",
+        cancelText: "Cancel",
+        onConfirm: () => {
+          closeConfirm();
+          applyStatus(id, "Closed");
+          showToast("Closed.");
+
+          // Later: API + Zapier webhook
+          // zapier_type: "close"
+          // payload should include full item data (you’ll have it from `item`)
+        },
+      });
+      return;
+    }
+
+    applyStatus(id, status);
     showToast(`Status → ${status}`);
-    // Later: API + Zapier webhook
+
+    // Later: API update (optional zap)
+  }
+
+  function requestFollowUp(id) {
+    const item = items.find((x) => x.id === id);
+    openConfirm({
+      title: "Send follow up",
+      message: "Send follow up message?",
+      confirmText: "Send",
+      cancelText: "Cancel",
+      onConfirm: () => {
+        closeConfirm();
+        showToast("Follow up sent.");
+
+        // Later: API call to Zapier webhook
+        // zapier_type: "follow_up"
+        // payload should include full item data (item)
+      },
+    });
   }
 
   function removeItem(id) {
     if (!confirm("Delete this action item?")) return;
     setItems((prev) => prev.filter((x) => x.id !== id));
     showToast("Deleted.");
-    // Later: API -> BigQuery soft-delete + Zapier webhook
+    // Later: API -> BigQuery soft-delete
   }
 
   const filtered = useMemo(() => {
     let rows = [...items];
 
-    // Show Closed checkbox
     if (!showClosed) {
       rows = rows.filter((r) => r.status !== "Closed");
     }
 
-    // Search
     const q = query.trim().toLowerCase();
     if (q) {
       rows = rows.filter((r) => {
@@ -203,26 +309,14 @@ export default function App() {
       });
     }
 
-    // Status filter
-    if (activeStatus !== "All") {
-      rows = rows.filter((r) => r.status === activeStatus);
-    }
-
-    // Priority filter
-    if (activePriority !== "All") {
-      rows = rows.filter((r) => r.priority === activePriority);
-    }
-
-    // Assigned-to filter
-    if (activeAssignee !== "All") {
+    if (activeStatus !== "All") rows = rows.filter((r) => r.status === activeStatus);
+    if (activePriority !== "All") rows = rows.filter((r) => r.priority === activePriority);
+    if (activeAssignee !== "All")
       rows = rows.filter((r) => (r.assigned_to || []).includes(activeAssignee));
-    }
 
-    // Sort
     rows.sort((a, b) => {
       if (sortKey === "updated_desc") return b.updated_at.localeCompare(a.updated_at);
       if (sortKey === "created_desc") return b.created_at.localeCompare(a.created_at);
-
       const ad = a.expected_due_date || a.requested_due_date || "";
       const bd = b.expected_due_date || b.requested_due_date || "";
       if (sortKey === "due_asc") return ad.localeCompare(bd);
@@ -290,11 +384,7 @@ export default function App() {
                 placeholder="Search…"
               />
 
-              <select
-                className="dd-select"
-                value={activeStatus}
-                onChange={(e) => setActiveStatus(e.target.value)}
-              >
+              <select className="dd-select" value={activeStatus} onChange={(e) => setActiveStatus(e.target.value)}>
                 {["All", ...STATUS].map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -302,11 +392,7 @@ export default function App() {
                 ))}
               </select>
 
-              <select
-                className="dd-select"
-                value={activePriority}
-                onChange={(e) => setActivePriority(e.target.value)}
-              >
+              <select className="dd-select" value={activePriority} onChange={(e) => setActivePriority(e.target.value)}>
                 {["All", ...PRIORITY].map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -314,11 +400,7 @@ export default function App() {
                 ))}
               </select>
 
-              <select
-                className="dd-select"
-                value={activeAssignee}
-                onChange={(e) => setActiveAssignee(e.target.value)}
-              >
+              <select className="dd-select" value={activeAssignee} onChange={(e) => setActiveAssignee(e.target.value)}>
                 {["All", ...PEOPLE].map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -327,19 +409,11 @@ export default function App() {
               </select>
 
               <label className="dd-showclosed">
-                <input
-                  type="checkbox"
-                  checked={showClosed}
-                  onChange={(e) => setShowClosed(e.target.checked)}
-                />
+                <input type="checkbox" checked={showClosed} onChange={(e) => setShowClosed(e.target.checked)} />
                 <span>Show Closed</span>
               </label>
 
-              <select
-                className="dd-select"
-                value={sortKey}
-                onChange={(e) => setSortKey(e.target.value)}
-              >
+              <select className="dd-select" value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
                 <option value="updated_desc">Sort: Updated (new)</option>
                 <option value="created_desc">Sort: Created (new)</option>
                 <option value="due_asc">Sort: Due date (soon)</option>
@@ -395,23 +469,32 @@ export default function App() {
 
                   <div className="dd-cell">
                     <div className={cx("dd-status", `dd-status-${statusKey(r.status)}`)}>{r.status}</div>
+
+                    {/* Quick status buttons - include Closed */}
                     <div className="dd-quickstatus">
-                      {STATUS.filter((s) => s !== r.status)
-                        .slice(0, 2)
-                        .map((s) => (
-                          <button key={s} className="dd-chip" onClick={() => quickSetStatus(r.id, s)} type="button">
-                            {s}
-                          </button>
-                        ))}
+                      {STATUS.filter((s) => s !== r.status).map((s) => (
+                        <button
+                          key={s}
+                          className="dd-chip"
+                          onClick={() => requestStatusChange(r.id, s)}
+                          type="button"
+                        >
+                          {s}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  <div className="dd-cell dd-right">
+                  {/* Actions stack */}
+                  <div className="dd-cell dd-right dd-actions-stack">
                     <button className="dd-btn dd-btn-small" onClick={() => startEdit(r.id)} type="button">
                       Edit
                     </button>
                     <button className="dd-btn dd-btn-small dd-btn-danger" onClick={() => removeItem(r.id)} type="button">
                       Delete
+                    </button>
+                    <button className="dd-btn dd-btn-small" onClick={() => requestFollowUp(r.id)} type="button">
+                      Send Follow Up
                     </button>
                   </div>
                 </div>
@@ -421,23 +504,28 @@ export default function App() {
         </section>
       </main>
 
-
       {/* Create Modal */}
       {createOpen ? (
-        <CreateModal
-          value={createForm}
-          onChange={setCreateForm}
-          onClose={closeCreate}
-          onSubmit={onCreate}
-        />
+        <CreateModal value={createForm} onChange={setCreateForm} onClose={closeCreate} onSubmit={onCreate} />
       ) : null}
 
       {/* Edit Modal */}
       {editingItem ? (
-        <EditModal
-          item={editingItem}
-          onClose={cancelEdit}
-          onSave={saveEdit}
+        <EditModal item={editingItem} onClose={cancelEdit} onSave={saveEditWithCloseConfirm} />
+      ) : null}
+
+      {/* Confirm Modal */}
+      {confirm.open ? (
+        <ConfirmModal
+          title={confirm.title}
+          message={confirm.message}
+          confirmText={confirm.confirmText}
+          cancelText={confirm.cancelText}
+          onCancel={closeConfirm}
+          onConfirm={() => {
+            const fn = confirm.onConfirm;
+            if (typeof fn === "function") fn();
+          }}
         />
       ) : null}
 
@@ -458,36 +546,6 @@ function pillKey(r) {
   return "normal";
 }
 
-function MultiSelectChips({ options, value, onChange }) {
-  const selected = Array.isArray(value) ? value : [];
-
-  function toggle(opt) {
-    const has = selected.includes(opt);
-    const next = has ? selected.filter((x) => x !== opt) : [...selected, opt];
-    onChange(next.length ? next : []); // allow empty (we’ll guard on save)
-  }
-
-  return (
-    <div className="dd-chips">
-      {options.map((opt) => {
-        const isOn = selected.includes(opt);
-        return (
-          <button
-            key={opt}
-            type="button"
-            className={cx("dd-chip", isOn && "dd-chip-on")}
-            onClick={() => toggle(opt)}
-          >
-            {opt}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-
-/** CREATE MODAL **/
 function CreateModal({ value, onChange, onClose, onSubmit }) {
   return (
     <div className="dd-modal-backdrop" role="dialog" aria-modal="true">
@@ -495,9 +553,7 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
         <div className="dd-modal-head">
           <div>
             <div className="dd-modal-title">Create action item</div>
-            <div className="dd-modal-sub">
-              Requested due date (creator) vs Expected due date (assignee)
-            </div>
+            <div className="dd-modal-sub">Requested due date (creator) vs Expected due date (assignee)</div>
           </div>
           <button className="dd-btn dd-btn-small" onClick={onClose} type="button">
             Close
@@ -518,10 +574,7 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
 
             <label className="dd-field">
               <span>Category</span>
-              <select
-                value={value.category}
-                onChange={(e) => onChange((f) => ({ ...f, category: e.target.value }))}
-              >
+              <select value={value.category} onChange={(e) => onChange((f) => ({ ...f, category: e.target.value }))}>
                 {CATEGORY.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -571,10 +624,7 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
 
             <label className="dd-field">
               <span>Status</span>
-              <select
-                value={value.status}
-                onChange={(e) => onChange((f) => ({ ...f, status: e.target.value }))}
-              >
+              <select value={value.status} onChange={(e) => onChange((f) => ({ ...f, status: e.target.value }))}>
                 {STATUS.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -585,10 +635,7 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
 
             <label className="dd-field">
               <span>Priority</span>
-              <select
-                value={value.priority}
-                onChange={(e) => onChange((f) => ({ ...f, priority: e.target.value }))}
-              >
+              <select value={value.priority} onChange={(e) => onChange((f) => ({ ...f, priority: e.target.value }))}>
                 {PRIORITY.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -638,11 +685,7 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
                   className="dd-chip"
                   onClick={() => {
                     const iso = plusDaysISO(7);
-                    onChange((f) => ({
-                      ...f,
-                      requested_due_date: iso,
-                      expected_due_date: iso,
-                    }));
+                    onChange((f) => ({ ...f, requested_due_date: iso, expected_due_date: iso }));
                   }}
                 >
                   +7d
@@ -659,14 +702,12 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
               </button>
             </div>
           </div>
-
         </form>
       </div>
     </div>
   );
 }
 
-/** EDIT MODAL **/
 function EditModal({ item, onClose, onSave }) {
   const [draft, setDraft] = useState(() => ({
     title: item.title || "",
@@ -684,7 +725,7 @@ function EditModal({ item, onClose, onSave }) {
     e.preventDefault();
     const title = draft.title.trim();
     if (!title) return;
-    onSave({ ...draft, title, description: draft.description.trim() });
+    onSave({ ...draft, title, description: draft.description.trim() }, item);
   }
 
   return (
@@ -704,19 +745,12 @@ function EditModal({ item, onClose, onSave }) {
           <div className="dd-row dd-row-2">
             <label className="dd-field">
               <span>Title *</span>
-              <input
-                value={draft.title}
-                onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
-                maxLength={160}
-              />
+              <input value={draft.title} onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))} />
             </label>
 
             <label className="dd-field">
               <span>Category</span>
-              <select
-                value={draft.category}
-                onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}
-              >
+              <select value={draft.category} onChange={(e) => setDraft((d) => ({ ...d, category: e.target.value }))}>
                 {CATEGORY.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -732,17 +766,13 @@ function EditModal({ item, onClose, onSave }) {
               value={draft.description}
               onChange={(e) => setDraft((d) => ({ ...d, description: e.target.value }))}
               rows={4}
-              maxLength={2000}
             />
           </label>
 
           <div className="dd-row dd-row-4">
             <label className="dd-field">
               <span>Requested by</span>
-              <select
-                value={draft.requested_by}
-                onChange={(e) => setDraft((d) => ({ ...d, requested_by: e.target.value }))}
-              >
+              <select value={draft.requested_by} onChange={(e) => setDraft((d) => ({ ...d, requested_by: e.target.value }))}>
                 {PEOPLE.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -762,10 +792,7 @@ function EditModal({ item, onClose, onSave }) {
 
             <label className="dd-field">
               <span>Status</span>
-              <select
-                value={draft.status}
-                onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}
-              >
+              <select value={draft.status} onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}>
                 {STATUS.map((s) => (
                   <option key={s} value={s}>
                     {s}
@@ -776,10 +803,7 @@ function EditModal({ item, onClose, onSave }) {
 
             <label className="dd-field">
               <span>Priority</span>
-              <select
-                value={draft.priority}
-                onChange={(e) => setDraft((d) => ({ ...d, priority: e.target.value }))}
-              >
+              <select value={draft.priority} onChange={(e) => setDraft((d) => ({ ...d, priority: e.target.value }))}>
                 {PRIORITY.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -818,6 +842,35 @@ function EditModal({ item, onClose, onSave }) {
             </div>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmModal({ title, message, confirmText, cancelText, onConfirm, onCancel }) {
+  return (
+    <div className="dd-modal-backdrop" role="dialog" aria-modal="true">
+      <div className="dd-modal" style={{ maxWidth: 560 }}>
+        <div className="dd-modal-head">
+          <div>
+            <div className="dd-modal-title">{title}</div>
+            <div className="dd-modal-sub">{message}</div>
+          </div>
+          <button className="dd-btn dd-btn-small" onClick={onCancel} type="button">
+            Close
+          </button>
+        </div>
+
+        <div className="dd-form" style={{ paddingTop: 10 }}>
+          <div className="dd-actions" style={{ justifyContent: "flex-end" }}>
+            <button className="dd-btn" type="button" onClick={onCancel}>
+              {cancelText}
+            </button>
+            <button className="dd-btn dd-btn-primary" type="button" onClick={onConfirm}>
+              {confirmText}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
