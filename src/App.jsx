@@ -208,43 +208,60 @@ useEffect(() => {
     setCreateOpen(false);
   }
 
-  function onCreate(e) {
-    e.preventDefault();
+  async function onCreate(e) {
+  e.preventDefault();
 
-    const title = createForm.title.trim();
-    if (!title) return showToast("Title is required.");
+  const title = createForm.title.trim();
+  if (!title) return showToast("Title is required.");
 
-    const assigned = Array.isArray(createForm.assigned_to)
-      ? createForm.assigned_to.filter(Boolean)
-      : [];
+  const assigned = Array.isArray(createForm.assigned_to)
+    ? createForm.assigned_to.filter(Boolean)
+    : [];
 
-    if (!assigned.length) return showToast("Pick at least 1 assignee.");
+  if (!assigned.length) return showToast("Pick at least 1 assignee.");
 
-    const now = new Date().toISOString();
+  try {
+    const base = import.meta.env.VITE_API_BASE_URL;
+    const key = import.meta.env.VITE_API_KEY;
 
-    const newItem = {
-      id: uid(),
+    const payload = {
       title,
-      description: createForm.description.trim(),
-      category: createForm.category,
-      status: createForm.status,
-      priority: createForm.priority,
-      requested_due_date: createForm.requested_due_date || "",
-      expected_due_date: createForm.expected_due_date || "",
-      requested_by: createForm.requested_by,
+      description: createForm.description.trim() || null,
+      category: createForm.category || null,
+      status: createForm.status || "Open",
+      priority: createForm.priority || "Normal",
+      requested_by: createForm.requested_by || null,
       assigned_to: assigned,
-      created_at: now,
-      updated_at: now,
+      requested_due_date: createForm.requested_due_date || null,
+      expected_due_date: createForm.expected_due_date || null,
     };
 
-    setItems((prev) => [newItem, ...prev]);
+    const res = await fetch(`${base}/action-items`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const text = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+
+    const created = JSON.parse(text);
+
+    // show it instantly in the UI
+    setItems((prev) => [created, ...prev]);
+
     resetCreateForm();
     setCreateOpen(false);
     showToast("Action item created.");
-
-    // Later: API -> BigQuery insert + Zapier webhook
-    // zapier_type: "create"
+  } catch (err) {
+    console.error(err);
+    showToast(`Create failed: ${err.message || "error"}`);
   }
+}
+
 
   function startEdit(id) {
     setEditingId(id);
