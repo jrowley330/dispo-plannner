@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import dispoLogo from "./assets/digital-dispo-logo.png";
 
 const BRAND = { line1: "THE DIGITAL DISPO LLC", line2: "PLANNING TOOL" };
@@ -62,6 +62,59 @@ function MultiSelectChips({ options, value, onChange }) {
 export default function App() {
   // Data (local only for now)
   const [items, setItems] = useState([]);
+
+
+useEffect(() => {
+  async function load() {
+    try {
+      const base = import.meta.env.VITE_API_BASE_URL;
+      const key = import.meta.env.VITE_API_KEY;
+
+      const res = await fetch(`${base}/action-items`, {
+        headers: { "x-api-key": key },
+      });
+
+      const text = await res.text();
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+
+      const rows = JSON.parse(text);
+
+      // Keep your UI labels consistent (API likely returns lowercase statuses)
+      const normalizeStatus = (s) => {
+        const v = String(s || "").toLowerCase();
+        if (v === "open") return "Open";
+        if (v === "in_process" || v === "in process") return "In Process";
+        if (v === "on_hold" || v === "on hold") return "On Hold";
+        if (v === "closed") return "Closed";
+        return s || "Open";
+      };
+
+      const normalized = Array.isArray(rows)
+        ? rows.map((r) => ({
+            ...r,
+            status: normalizeStatus(r.status),
+            // make sure these exist as strings for your UI rendering/sorting
+            created_at: r.created_at ? String(r.created_at) : "",
+            updated_at: r.updated_at ? String(r.updated_at) : "",
+            requested_due_date: r.requested_due_date ? String(r.requested_due_date) : "",
+            expected_due_date: r.expected_due_date ? String(r.expected_due_date) : "",
+            assigned_to: Array.isArray(r.assigned_to) ? r.assigned_to : [],
+          }))
+        : [];
+
+      setItems(normalized);
+    } catch (e) {
+      console.error(e);
+      showToast(`Load failed: ${e.message || "error"}`);
+    }
+  }
+
+  load();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
+
+
+
 
   // List controls
   const [query, setQuery] = useState("");
