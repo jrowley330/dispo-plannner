@@ -412,7 +412,7 @@ export default function App() {
   async function removeItem(id) {
     openConfirm({
       title: "Confirm delete",
-      message: "Delete this action item? (This is a soft delete.)",
+      message: "Delete this action item?",
       confirmText: "Yes, Delete",
       cancelText: "Cancel",
       onConfirm: async () => {
