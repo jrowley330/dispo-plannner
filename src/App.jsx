@@ -402,12 +402,26 @@ export default function App() {
       message: "Send follow up message?",
       confirmText: "Send",
       cancelText: "Cancel",
-      onConfirm: () => {
-        closeConfirm();
-        showToast("Follow up sent.");
+      onConfirm: async () => {
+        try {
+          closeConfirm();
+          await apiFetch(`/action-items/${id}/follow-up`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              actor: "Joey", // optional
+              source: "ui_follow_up_button",
+            }),
+          });
+          showToast("Follow up sent.");
+        } catch (e) {
+          console.error(e);
+          showToast(`Follow up failed: ${e.message || "error"}`);
+        }
       },
     });
   }
+
 
   async function removeItem(id) {
     openConfirm({
