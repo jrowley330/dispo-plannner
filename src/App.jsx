@@ -306,19 +306,76 @@ export default function App() {
     saveEdit(patch);
   }
 
-  function saveEdit(patch) {
+
+  async function saveEdit(patch) {
+  const id = editingId;
+  if (!id) return;
+
+  try {
+    // Build payload that matches your API schema
+    const payload = {
+      title: patch.title?.trim() || null,
+      description: patch.description ? patch.description.trim() : null,
+      category: patch.category || null,
+      priority: patch.priority || null,
+      status: patch.status || null,
+      requested_by: patch.requested_by || null,
+      assigned_to: Array.isArray(patch.assigned_to) ? patch.assigned_to : null,
+
+      // dates come from <input type="date"> as YYYY-MM-DD strings
+      requested_due_date: patch.requested_due_date ? String(patch.requested_due_date).slice(0, 10) : null,
+      expected_due_date: patch.expected_due_date ? String(patch.expected_due_date).slice(0, 10) : null,
+    };
+
+    await apiFetch(`/action-items/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    // Update UI locally (fast) — mirrors what backend does
     const now = new Date().toISOString();
     setItems((prev) =>
-      prev.map((x) => (x.id === editingId ? { ...x, ...patch, updated_at: now } : x))
+      prev.map((x) =>
+        x.id === id
+          ? {
+              ...x,
+              ...payload,
+              // keep arrays clean
+              assigned_to: Array.isArray(payload.assigned_to) ? payload.assigned_to : x.assigned_to,
+              updated_at: now,
+              // if you closed it, show in UI immediately
+              closed_at: payload.status === "Closed" ? (x.closed_at || now) : null,
+            }
+          : x
+      )
     );
+
     setEditingId(null);
     showToast("Saved.");
+  } catch (e) {
+    console.error(e);
+    showToast(`Save failed: ${e.message || "error"}`);
   }
+}
 
-  function applyStatus(id, status) {
+
+  async function applyStatus(id, status) {
+  try {
+    await apiFetch(`/action-items/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+
     const now = new Date().toISOString();
     setItems((prev) => prev.map((x) => (x.id === id ? { ...x, status, updated_at: now } : x)));
+  } catch (e) {
+    console.error(e);
+    showToast(`Status update failed: ${e.message || "error"}`);
   }
+}
+
 
   function requestStatusChange(id, status) {
     if (status === "Closed") {
