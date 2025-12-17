@@ -244,6 +244,41 @@ async function apiFetch(path, options = {}) {
     setCreateOpen(false);
   }
 
+
+  // --- API helper (add this ABOVE onCreate) ---
+async function apiFetch(path, options = {}) {
+  const base = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
+  const key = import.meta.env.VITE_API_KEY || "";
+
+  if (!base) throw new Error("VITE_API_BASE_URL is missing");
+  if (!key) throw new Error("VITE_API_KEY is missing");
+
+  const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
+
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      "x-api-key": key,
+    },
+  });
+
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = { error: text };
+  }
+
+  if (!res.ok) {
+    throw new Error(data?.error || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
+
+
   async function onCreate(e) {
   e.preventDefault();
 
