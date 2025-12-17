@@ -590,8 +590,15 @@ useEffect(() => {
 
       {/* Create Modal */}
       {createOpen ? (
-        <CreateModal value={createForm} onChange={setCreateForm} onClose={closeCreate} onSubmit={onCreate} />
+        <CreateModal
+          value={createForm}
+          onChange={setCreateForm}
+          onClose={closeCreate}
+          onSubmit={onCreate}
+          creating={creating}
+        />
       ) : null}
+
 
       {/* Edit Modal */}
       {editingItem ? (
@@ -630,7 +637,7 @@ function pillKey(r) {
   return "normal";
 }
 
-function CreateModal({ value, onChange, onClose, onSubmit }) {
+function CreateModal({ value, onChange, onClose, onSubmit, creating }) {
   return (
     <div className="dd-modal-backdrop" role="dialog" aria-modal="true">
       <div className="dd-modal">
