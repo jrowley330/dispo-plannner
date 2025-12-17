@@ -176,6 +176,39 @@ useEffect(() => {
     showToast._t = window.setTimeout(() => setToast(""), 2400);
   }
 
+
+  const API_BASE = import.meta.env.VITE_API_BASE;
+const API_KEY  = import.meta.env.VITE_API_KEY;
+
+function showToast(message, type = "info") {
+  setToast({ message, type });
+}
+
+/* 👇 PUT IT RIGHT HERE */
+async function apiFetch(path, options = {}) {
+  const url = `${API_BASE}${path}`;
+
+  const headers = {
+    ...(options.headers || {}),
+    "x-api-key": API_KEY,
+  };
+
+  const res = await fetch(url, { ...options, headers });
+
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const data = await res.json();
+      msg = data?.error || data?.message || msg;
+    } catch {}
+    throw new Error(msg);
+  }
+
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+
   function openConfirm(opts) {
     setConfirm({
       open: true,
