@@ -1,3 +1,4 @@
+
 import { useEffect, useMemo, useState } from "react";
 import dispoLogo from "./assets/digital-dispo-logo.png";
 
@@ -176,39 +177,6 @@ useEffect(() => {
     showToast._t = window.setTimeout(() => setToast(""), 2400);
   }
 
-
-  const API_BASE = import.meta.env.VITE_API_BASE;
-const API_KEY  = import.meta.env.VITE_API_KEY;
-
-function showToast(message, type = "info") {
-  setToast({ message, type });
-}
-
-/* 👇 PUT IT RIGHT HERE */
-async function apiFetch(path, options = {}) {
-  const url = `${API_BASE}${path}`;
-
-  const headers = {
-    ...(options.headers || {}),
-    "x-api-key": API_KEY,
-  };
-
-  const res = await fetch(url, { ...options, headers });
-
-  if (!res.ok) {
-    let msg = `HTTP ${res.status}`;
-    try {
-      const data = await res.json();
-      msg = data?.error || data?.message || msg;
-    } catch {}
-    throw new Error(msg);
-  }
-
-  if (res.status === 204) return null;
-  return res.json();
-}
-
-
   function openConfirm(opts) {
     setConfirm({
       open: true,
@@ -244,91 +212,71 @@ async function apiFetch(path, options = {}) {
     setCreateOpen(false);
   }
 
-
-  // --- API helper (add this ABOVE onCreate) ---
-async function apiFetch(path, options = {}) {
-  const base = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
-  const key = import.meta.env.VITE_API_KEY || "";
-
-  if (!base) throw new Error("VITE_API_BASE_URL is missing");
-  if (!key) throw new Error("VITE_API_KEY is missing");
-
-  const url = `${base}${path.startsWith("/") ? "" : "/"}${path}`;
-
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      ...(options.headers || {}),
-      "x-api-key": key,
-    },
-  });
-
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = { error: text };
-  }
-
-  if (!res.ok) {
-    throw new Error(data?.error || `HTTP ${res.status}`);
-  }
-
-  return data;
-}
-
-
   async function onCreate(e) {
   e.preventDefault();
 
-  // --- Frontend required fields (expected_due_date is NOT required) ---
-  const title = (createForm.title || "").trim();
-  if (!title) return showToast("Title is required.");
-
-  const assigned = Array.isArray(createForm.assigned_to)
-    ? createForm.assigned_to.filter(Boolean)
-    : [];
-  if (!assigned.length) return showToast("Pick at least 1 assignee.");
-
-  const requestedBy = (createForm.requested_by || "").trim();
-  if (!requestedBy) return showToast("Requested by is required.");
-
-  const requestedDue = (createForm.requested_due_date || "").trim();
-  if (!requestedDue) return showToast("Requested due date is required.");
-
-  // --- Build payload EXACTLY how the backend expects it ---
-  // IMPORTANT: send NULL for blank dates (NOT "")
-  const payload = {
-    title,
-    description: (createForm.description || "").trim() || null,
-    category: createForm.category || null,
-    priority: createForm.priority || "Normal",
-    status: createForm.status || "Open",
-    requested_by: requestedBy,
-    assigned_to: assigned,
-    requested_due_date: requestedDue || null,
-    expected_due_date: (createForm.expected_due_date || "").trim() || null, // optional
-  };
+  // prevent double submit
+  if (creating) return;
+  setCreating(true);
 
   try {
-    const created = await apiFetch("/action-items", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    const title = createForm.title.trim();
+    if (!title) {
+      showToast("Please enter a title.");
+      return;
+    }
 
-    // success UI
+    const assigned = Array.isArray(createForm.assigned_to)
+      ? createForm.assigned_to.filter(Boolean)
+      : [];
+
+    if (!assigned.length) {
+      showToast("Please select at least one assignee.");
+      return;
+    }
+
+    const payload = {
+      title,
+      description: createForm.description?.trim() || null,
+      category: createForm.category || null,
+      priority: createForm.priority || "Normal",
+      status: createForm.status || "Open",
+      requested_by: createForm.requested_by || null,
+      assigned_to: assigned,
+      requested_due_date: createForm.requested_due_date || null,
+      expected_due_date: null, // OPTIONAL – assignee sets later
+    };
+
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/action-items`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_API_KEY,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    const text = await res.text();
+    if (!res.ok) throw new Error(text);
+
+    const created = JSON.parse(text);
+
+    // add to UI immediately
     setItems((prev) => [created, ...prev]);
+
     resetCreateForm();
     setCreateOpen(false);
     showToast("Action item created.");
   } catch (err) {
-    // if backend returns { error: "..." } this will show it
-    showToast(err?.message || "Create failed. Please check required fields and try again.");
+    console.error(err);
+    showToast("Create failed. Please check required fields and try again.");
+  } finally {
+    setCreating(false);
   }
 }
-
 
   function startEdit(id) {
     setEditingId(id);
@@ -643,15 +591,8 @@ async function apiFetch(path, options = {}) {
 
       {/* Create Modal */}
       {createOpen ? (
-        <CreateModal
-          value={createForm}
-          onChange={setCreateForm}
-          onClose={closeCreate}
-          onSubmit={onCreate}
-          creating={creating}
-        />
+        <CreateModal value={createForm} onChange={setCreateForm} onClose={closeCreate} onSubmit={onCreate} />
       ) : null}
-
 
       {/* Edit Modal */}
       {editingItem ? (
@@ -690,7 +631,7 @@ function pillKey(r) {
   return "normal";
 }
 
-function CreateModal({ value, onChange, onClose, onSubmit, creating }) {
+function CreateModal({ value, onChange, onClose, onSubmit }) {
   return (
     <div className="dd-modal-backdrop" role="dialog" aria-modal="true">
       <div className="dd-modal">
