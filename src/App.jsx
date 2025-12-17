@@ -214,68 +214,53 @@ useEffect(() => {
   async function onCreate(e) {
   e.preventDefault();
 
-  // prevent double submit
-  if (creating) return;
-  setCreating(true);
+  // --- Frontend required fields (expected_due_date is NOT required) ---
+  const title = (createForm.title || "").trim();
+  if (!title) return showToast("Title is required.");
+
+  const assigned = Array.isArray(createForm.assigned_to)
+    ? createForm.assigned_to.filter(Boolean)
+    : [];
+  if (!assigned.length) return showToast("Pick at least 1 assignee.");
+
+  const requestedBy = (createForm.requested_by || "").trim();
+  if (!requestedBy) return showToast("Requested by is required.");
+
+  const requestedDue = (createForm.requested_due_date || "").trim();
+  if (!requestedDue) return showToast("Requested due date is required.");
+
+  // --- Build payload EXACTLY how the backend expects it ---
+  // IMPORTANT: send NULL for blank dates (NOT "")
+  const payload = {
+    title,
+    description: (createForm.description || "").trim() || null,
+    category: createForm.category || null,
+    priority: createForm.priority || "Normal",
+    status: createForm.status || "Open",
+    requested_by: requestedBy,
+    assigned_to: assigned,
+    requested_due_date: requestedDue || null,
+    expected_due_date: (createForm.expected_due_date || "").trim() || null, // optional
+  };
 
   try {
-    const title = createForm.title.trim();
-    if (!title) {
-      showToast("Please enter a title.");
-      return;
-    }
+    const created = await apiFetch("/action-items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
 
-    const assigned = Array.isArray(createForm.assigned_to)
-      ? createForm.assigned_to.filter(Boolean)
-      : [];
-
-    if (!assigned.length) {
-      showToast("Please select at least one assignee.");
-      return;
-    }
-
-    const payload = {
-      title,
-      description: createForm.description?.trim() || null,
-      category: createForm.category || null,
-      priority: createForm.priority || "Normal",
-      status: createForm.status || "Open",
-      requested_by: createForm.requested_by || null,
-      assigned_to: assigned,
-      requested_due_date: createForm.requested_due_date || null,
-      expected_due_date: null, // OPTIONAL – assignee sets later
-    };
-
-    const res = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/action-items`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": import.meta.env.VITE_API_KEY,
-        },
-        body: JSON.stringify(payload),
-      }
-    );
-
-    const text = await res.text();
-    if (!res.ok) throw new Error(text);
-
-    const created = JSON.parse(text);
-
-    // add to UI immediately
+    // success UI
     setItems((prev) => [created, ...prev]);
-
     resetCreateForm();
     setCreateOpen(false);
     showToast("Action item created.");
   } catch (err) {
-    console.error(err);
-    showToast("Create failed. Please check required fields and try again.");
-  } finally {
-    setCreating(false);
+    // if backend returns { error: "..." } this will show it
+    showToast(err?.message || "Create failed. Please check required fields and try again.");
   }
 }
+
 
   function startEdit(id) {
     setEditingId(id);
