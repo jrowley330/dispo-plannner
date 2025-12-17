@@ -723,3 +723,15 @@ button{ cursor:pointer; }
 .dd-actions-stack .dd-btn{
   width: 140px;
 }
+
+/* Chrome / Edge */
+.dd-field input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+/* optional: makes the little icon easier to see on hover */
+.dd-field input[type="date"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
