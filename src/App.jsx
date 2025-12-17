@@ -409,10 +409,28 @@ export default function App() {
     });
   }
 
-  function removeItem(id) {
-    if (!confirm("Delete this action item?")) return;
-    setItems((prev) => prev.filter((x) => x.id !== id));
-    showToast("Deleted.");
+  async function removeItem(id) {
+    openConfirm({
+      title: "Confirm delete",
+      message: "Delete this action item? (This is a soft delete.)",
+      confirmText: "Yes, Delete",
+      cancelText: "Cancel",
+      onConfirm: async () => {
+        try {
+          closeConfirm();
+
+          await apiFetch(`/action-items/${id}`, {
+            method: "DELETE",
+          });
+
+          setItems((prev) => prev.filter((x) => x.id !== id));
+          showToast("Deleted.");
+        } catch (e) {
+          console.error(e);
+          showToast(`Delete failed: ${e.message || "error"}`);
+        }
+      },
+    });
   }
 
   const stats = useMemo(() => {
