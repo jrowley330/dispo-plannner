@@ -805,6 +805,7 @@ function CreateModal({ value, onChange, onClose, onSubmit, creating }) {
 }
 
 function EditModal({ item, onClose, onSave }) {
+  const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState(() => ({
     title: item.title || "",
     description: item.description || "",
@@ -817,12 +818,24 @@ function EditModal({ item, onClose, onSave }) {
     expected_due_date: item.expected_due_date || "",
   }));
 
-  function submit(e) {
-    e.preventDefault();
-    const title = draft.title.trim();
-    if (!title) return;
-    onSave({ ...draft, title, description: (draft.description || "").trim() }, item);
+  async function submit(e) {
+  e.preventDefault();
+  if (saving) return;
+
+  const title = draft.title.trim();
+  if (!title) return;
+
+  try {
+    setSaving(true);
+    await onSave(
+      { ...draft, title, description: (draft.description || "").trim() },
+      item
+    );
+  } finally {
+    setSaving(false);
   }
+}
+
 
   return (
     <div className="dd-modal-backdrop" role="dialog" aria-modal="true">
@@ -913,8 +926,13 @@ function EditModal({ item, onClose, onSave }) {
             </label>
 
             <div className="dd-actions">
-              <button className="dd-btn dd-btn-primary" type="submit">
-                Save
+              <button
+              className="dd-btn dd-btn-primary"
+              type="submit"
+              disabled={saving}
+              style={{ opacity: saving ? 0.7 : 1 }}
+              >
+             {saving ? "Saving..." : "Save"}
               </button>
               <button className="dd-btn" type="button" onClick={onClose}>
                 Cancel
