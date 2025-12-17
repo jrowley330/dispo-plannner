@@ -654,7 +654,8 @@ export default function App() {
         />
       ) : null}
 
-      {editingItem ? <EditModal item={editingItem} onClose={cancelEdit} onSave={saveEditWithCloseConfirm} /> : null}
+      {editingItem ? <EditModal item={editingItem} onClose={cancelEdit} onSave={saveEdit} /> : null}
+
 
       {confirm.open ? (
         <ConfirmModal
@@ -824,6 +825,7 @@ function CreateModal({ value, onChange, onClose, onSubmit, creating }) {
 
 function EditModal({ item, onClose, onSave }) {
   const [saving, setSaving] = useState(false);
+  const [confirmCloseOpen, setConfirmCloseOpen] = useState(false);
   const [draft, setDraft] = useState(() => ({
     title: item.title || "",
     description: item.description || "",
@@ -837,22 +839,26 @@ function EditModal({ item, onClose, onSave }) {
   }));
 
   async function submit(e) {
-  e.preventDefault();
-  if (saving) return;
+    e.preventDefault();
+    if (saving) return;
 
-  const title = draft.title.trim();
-  if (!title) return;
+    const title = draft.title.trim();
+    if (!title) return;
 
-  try {
-    setSaving(true);
-    await onSave(
-      { ...draft, title, description: (draft.description || "").trim() },
-      item
-    );
-  } finally {
-    setSaving(false);
+    const goingClosed = item?.status !== "Closed" && draft.status === "Closed";
+    if (goingClosed) {
+      setConfirmCloseOpen(true);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await onSave({ ...draft, title, description: (draft.description || "").trim() }, item);
+    } finally {
+      setSaving(false);
+    }
   }
-}
+
 
 
   return (
@@ -958,6 +964,27 @@ function EditModal({ item, onClose, onSave }) {
             </div>
           </div>
         </form>
+        {confirmCloseOpen ? (
+          <ConfirmModal
+            title="Confirm close"
+            message="Mark this action item as CLOSED?"
+            confirmText="Yes, Close"
+            cancelText="Cancel"
+            onCancel={() => setConfirmCloseOpen(false)}
+            onConfirm={async () => {
+              setConfirmCloseOpen(false);
+              const title = draft.title.trim();
+              if (!title) return;
+
+              try {
+                setSaving(true);
+                await onSave({ ...draft, title, description: (draft.description || "").trim() }, item);
+              } finally {
+                setSaving(false);
+              }
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );
