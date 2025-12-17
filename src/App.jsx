@@ -294,17 +294,18 @@ export default function App() {
       openConfirm({
         title: "Confirm close",
         message: "Mark this action item as CLOSED?",
-        confirmText: "Yes, Close",
+       confirmText: "Yes, Close",
         cancelText: "Cancel",
         onConfirm: () => {
           closeConfirm();
-          saveEdit(patch);
+         return saveEdit(patch); // <- return here too (not strictly needed but good)
         },
       });
-      return;
+     return; // confirm flow handled separately
     }
-    saveEdit(patch);
+    return saveEdit(patch); // ✅ THIS IS THE KEY
   }
+
 
 
   async function saveEdit(patch) {
