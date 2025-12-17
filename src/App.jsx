@@ -124,6 +124,9 @@ useEffect(() => {
   const [activeAssignee, setActiveAssignee] = useState("All");
   const [sortKey, setSortKey] = useState("updated_desc");
 
+  const [creating, setCreating] = useState(false);
+
+
   // Toast
   const [toast, setToast] = useState("");
 
@@ -211,46 +214,56 @@ useEffect(() => {
   async function onCreate(e) {
   e.preventDefault();
 
-  const title = createForm.title.trim();
-  if (!title) return showToast("Title is required.");
-
-  const assigned = Array.isArray(createForm.assigned_to)
-    ? createForm.assigned_to.filter(Boolean)
-    : [];
-
-  if (!assigned.length) return showToast("Pick at least 1 assignee.");
+  // prevent double submit
+  if (creating) return;
+  setCreating(true);
 
   try {
-    const base = import.meta.env.VITE_API_BASE_URL;
-    const key = import.meta.env.VITE_API_KEY;
+    const title = createForm.title.trim();
+    if (!title) {
+      showToast("Please enter a title.");
+      return;
+    }
+
+    const assigned = Array.isArray(createForm.assigned_to)
+      ? createForm.assigned_to.filter(Boolean)
+      : [];
+
+    if (!assigned.length) {
+      showToast("Please select at least one assignee.");
+      return;
+    }
 
     const payload = {
       title,
-      description: createForm.description.trim() || null,
+      description: createForm.description?.trim() || null,
       category: createForm.category || null,
-      status: createForm.status || "Open",
       priority: createForm.priority || "Normal",
+      status: createForm.status || "Open",
       requested_by: createForm.requested_by || null,
       assigned_to: assigned,
       requested_due_date: createForm.requested_due_date || null,
-      expected_due_date: createForm.expected_due_date || null,
+      expected_due_date: null, // OPTIONAL – assignee sets later
     };
 
-    const res = await fetch(`${base}/action-items`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": key,
-      },
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/action-items`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": import.meta.env.VITE_API_KEY,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
 
     const text = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
+    if (!res.ok) throw new Error(text);
 
     const created = JSON.parse(text);
 
-    // show it instantly in the UI
+    // add to UI immediately
     setItems((prev) => [created, ...prev]);
 
     resetCreateForm();
@@ -258,10 +271,11 @@ useEffect(() => {
     showToast("Action item created.");
   } catch (err) {
     console.error(err);
-    showToast(`Create failed: ${err.message || "error"}`);
+    showToast("Create failed. Please check required fields and try again.");
+  } finally {
+    setCreating(false);
   }
 }
-
 
   function startEdit(id) {
     setEditingId(id);
@@ -764,8 +778,12 @@ function CreateModal({ value, onChange, onClose, onSubmit }) {
             </div>
 
             <div className="dd-actions">
-              <button className="dd-btn dd-btn-primary" type="submit">
-                Create
+              <button
+                className="dd-btn dd-btn-primary"
+                type="submit"
+                disabled={creating}
+              >
+                {creating ? "Creating..." : "Create"}
               </button>
               <button className="dd-btn" type="button" onClick={onClose}>
                 Cancel
