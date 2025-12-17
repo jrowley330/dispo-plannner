@@ -363,12 +363,11 @@ export default function App() {
 
   async function applyStatus(id, status) {
   try {
-    await apiFetch(`/action-items/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-
+    await apiFetch(`/action-items/${id}/status`, {
+  method: "PATCH",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ status }),
+});
     const now = new Date().toISOString();
     setItems((prev) => prev.map((x) => (x.id === id ? { ...x, status, updated_at: now } : x)));
   } catch (e) {
