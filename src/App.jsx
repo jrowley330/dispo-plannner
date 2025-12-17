@@ -245,7 +245,7 @@ export default function App() {
         requested_by: createForm.requested_by || null,
         assigned_to: assigned,
         requested_due_date: createForm.requested_due_date || null,
-        expected_due_date: null,
+        expected_due_date: createForm.expected_due_date || null,
       };
 
       const created = await apiFetch("/action-items", {
