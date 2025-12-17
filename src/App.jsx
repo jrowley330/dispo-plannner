@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import dispoLogo from "./assets/digital-dispo-logo.png";
 
-const BRAND = { line1: "THE DIGITAL DISPO LLC", line2: "PLANNING TOOL" };
+const BRAND = { line1: "THE DIGITAL DISPO LLC", line2: "PLANNING TOOL (Lloyds a bitch)" };
 
 const STATUS = ["Open", "In Process", "On Hold", "Closed"];
 const PRIORITY = ["Low", "Normal", "High", "Urgent"];
